@@ -1,0 +1,1 @@
+{"period": "2026-Q2", "overall_brier": 0.212, "n_items": 5, "buckets": [{"confidence": 0.4, "n": 1, "brier": 0.16}, {"confidence": 0.6, "n": 1, "brier": 0.16}, {"confidence": 0.7, "n": 1, "brier": 0.09}, {"confidence": 0.8, "n": 1, "brier": 0.64}, {"confidence": 0.9, "n": 1, "brier": 0.01}], "computed_at": "2026-06-21"}

@@ -1,0 +1,26 @@
+period: 2026-Q2
+items:
+  - id: 2026-Q1-w03-meta-pause
+    claim: "Meta will publicly defer at least one announced 2026 expansion site"
+    confidence_bucket: 0.6
+    outcome: true
+
+  - id: 2026-Q1-w05-paper-fails-replication
+    claim: "The widely-cited Q4 alignment paper will fail to replicate within 90 days"
+    confidence_bucket: 0.8
+    outcome: false
+
+  - id: 2026-Q1-w07-capex-not-real
+    claim: "The Oracle Texas capex announcement will not produce a started build by mid-Q2"
+    confidence_bucket: 0.7
+    outcome: true
+
+  - id: 2026-Q1-w09-tsmc-tape-out
+    claim: "TSMC will tape out N2 on the announced schedule"
+    confidence_bucket: 0.4
+    outcome: false
+
+  - id: 2026-Q1-w11-cuda-share
+    claim: "CUDA share of new training runs will not drop below 85% by end Q2"
+    confidence_bucket: 0.9
+    outcome: true
