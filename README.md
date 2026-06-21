@@ -24,33 +24,44 @@ The output, every quarter, is one memo with three things:
 
 ## Status
 
-v0 scaffold. No predictions schema yet — only the spec ledger and the
-file layout below. First runnable code lands in spec 0002.
+v0.1 — a useful narrow slice runs end to end on a committed fixture.
 
 - [x] Repo scaffold + LICENSE + AGENTS.md
 - [x] Spec 0001 (foundation) — requirements, design, tasks, acceptance
-- [x] First-PR plan in `docs/first-pr.md`
-- [ ] `predictions.yaml` block schema
-- [ ] Brier scorer at 30/60/90/180-day horizons
-- [ ] Backfill 12 weeks of implicit predictions into explicit ones
-- [ ] First quarterly memo `brief_calibration/2026-Q3.md`
+- [x] Spec 0002 (v0.1 calibration loop) — requirements, design,
+      tasks, acceptance
+- [x] Brier scorer over `data/fixtures/<period>-brief-calls.yaml`
+- [x] Append-only JSONL ledger at `data/ledger/<period>.jsonl`
+- [x] First quarterly memo at
+      `decisions/calibration-memo/2026-Q2.md`
+- [x] DEC-CAL-001 rubric and `docs/METHODOLOGY.md`
+- [ ] Backfill 12 weeks of real brief items (spec 0003)
+- [ ] Per-horizon scoring at 30/60/90/180 days (spec 0003)
+- [ ] Calibration-curve SVG embedded in the memo (spec 0003)
+
+See `STATUS.md` for the next-feature queue.
 
 ## How to run
 
-Placeholder. The runnable CLI lands in spec 0002. Intended shape:
-
 ```bash
 uv sync
-uv run brief-cal ingest --brief-repo ../ai-field-brief --since 12w \
-    --out predictions/2026-W14_to_W25.yaml
-uv run brief-cal score --predictions predictions/ --as-of 2026-09-30 \
-    --out scores/2026-Q3.json
-uv run brief-cal memo --scores scores/2026-Q3.json \
-    --out brief_calibration/2026-Q3.md
+
+# typed-validate the fixture — this is the first user action
+python -m brief_calibration validate --period 2026-Q2
+
+# score and append a row to data/ledger/2026-Q2.jsonl
+python -m brief_calibration score --period 2026-Q2
+
+# render decisions/calibration-memo/2026-Q2.md from the latest row
+python -m brief_calibration memo --period 2026-Q2
+
+# tests
+pytest -q
 ```
 
-Until spec 0002 lands, the only thing that runs is
-`python -c "print('scaffold')"`.
+The fixture at `data/fixtures/2026-Q2-brief-calls.yaml` ships with
+five hand-curated calls; the ledger and memo for 2026-Q2 are
+committed as the worked example.
 
 ## Layout
 
@@ -59,45 +70,36 @@ brief-calibration/
   README.md
   LICENSE
   AGENTS.md
-  .gitignore
+  PRODUCT_BRIEF.md
+  SYSTEM_MAP.md
+  STATUS.md
+  pyproject.toml
+  brief_calibration/
+    __init__.py
+    __main__.py
+    cli.py
+    score.py
+    ledger.py
+    report.py
+  data/
+    fixtures/
+      2026-Q2-brief-calls.yaml
+    ledger/
+      2026-Q2.jsonl
+  decisions/
+    DEC-CAL-001-rubric-v0.md
+    calibration-memo/
+      2026-Q2.md
+  docs/
+    METHODOLOGY.md
+    first-pr.md
   specs/
     0001-foundation/
-      requirements.md
-      design.md
-      tasks.md
-      acceptance.md
-  docs/
-    first-pr.md
-```
-
-Planned but not yet present:
-
-```
-  cli/
-    main.py
-  src/
-    ingest/
-      brief_loader.py
-      predictions_extractor.py
-    score/
-      brier.py
-      calibration_curve.py
-      citation_uptake.py
-    memo/
-      renderer.py
-  schemas/
-    predictions.schema.json
-    brief_item.schema.json
-    memo.schema.json
-  predictions/
-    2026-W14_to_W25.yaml
-  scores/
-    2026-Q3.json
-  brief_calibration/
-    2026-Q3.md
+    0002-design/
   tests/
-    fixtures/
-  pyproject.toml
+    test_score.py
+    test_ledger.py
+    test_cli.py
 ```
 
 ## Who this is for
