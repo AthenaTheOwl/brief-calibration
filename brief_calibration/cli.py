@@ -29,6 +29,22 @@ def fixture_path(period: str, root: Optional[Path] = None) -> Path:
     return base / f"{period}-brief-calls.yaml"
 
 
+def discover_periods(root: Optional[Path] = None) -> List[str]:
+    """Return all periods that have a shipped fixture, sorted ascending."""
+    base = (root or Path(".")) / FIXTURE_DIR
+    if not base.exists():
+        return []
+    suffix = "-brief-calls.yaml"
+    periods = [p.name[: -len(suffix)] for p in base.glob(f"*{suffix}")]
+    return sorted(periods)
+
+
+def latest_period(root: Optional[Path] = None) -> Optional[str]:
+    """Return the newest shipped period, or None if no fixtures exist."""
+    periods = discover_periods(root=root)
+    return periods[-1] if periods else None
+
+
 def load_calls(period: str, root: Optional[Path] = None) -> List[Call]:
     path = fixture_path(period, root=root)
     if not path.exists():
@@ -40,30 +56,49 @@ def load_calls(period: str, root: Optional[Path] = None) -> List[Call]:
     return [Call(**item) for item in items]
 
 
+def resolve_period(period: Optional[str]) -> Optional[str]:
+    """Use the explicit period if given, else the newest shipped period."""
+    if period:
+        return period
+    return latest_period()
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
+    period = resolve_period(args.period)
+    if period is None:
+        print("validate: no fixtures found under data/fixtures", file=sys.stderr)
+        return 2
     try:
-        calls = load_calls(args.period)
+        calls = load_calls(period)
     except (FileNotFoundError, ValueError) as e:
         print(f"validate: {e}", file=sys.stderr)
         return 2
     except ValidationError as e:
         print(f"validate: schema violation: {e}", file=sys.stderr)
         return 2
-    print(f"validate: {args.period}: {len(calls)} calls ok")
+    print(f"validate: {period}: {len(calls)} calls ok")
     return 0
 
 
 def cmd_score(args: argparse.Namespace) -> int:
-    calls = load_calls(args.period)
-    score = compute_score(args.period, calls)
+    period = resolve_period(args.period)
+    if period is None:
+        print("score: no fixtures found under data/fixtures", file=sys.stderr)
+        return 2
+    calls = load_calls(period)
+    score = compute_score(period, calls)
     path = append_row(score)
-    print(f"score: {args.period}: overall brier {score.overall_brier} -> {path}")
+    print(f"score: {period}: overall brier {score.overall_brier} -> {path}")
     return 0
 
 
 def cmd_memo(args: argparse.Namespace) -> int:
-    path = write_memo(args.period)
-    print(f"memo: {args.period}: wrote {path}")
+    period = resolve_period(args.period)
+    if period is None:
+        print("memo: no fixtures found under data/fixtures", file=sys.stderr)
+        return 2
+    path = write_memo(period)
+    print(f"memo: {period}: wrote {path}")
     return 0
 
 
@@ -72,15 +107,15 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     v = sub.add_parser("validate", help="typed-validate the fixture")
-    v.add_argument("--period", required=True)
+    v.add_argument("--period", default=None, help="defaults to the newest shipped period")
     v.set_defaults(func=cmd_validate)
 
     s = sub.add_parser("score", help="compute brier, append a ledger row")
-    s.add_argument("--period", required=True)
+    s.add_argument("--period", default=None, help="defaults to the newest shipped period")
     s.set_defaults(func=cmd_score)
 
     m = sub.add_parser("memo", help="render the memo for a period")
-    m.add_argument("--period", required=True)
+    m.add_argument("--period", default=None, help="defaults to the newest shipped period")
     m.set_defaults(func=cmd_memo)
 
     return p
