@@ -25,8 +25,10 @@ class Call(BaseModel):
     @field_validator("confidence_bucket")
     @classmethod
     def _bucket_in_range(cls, v: float) -> float:
+        # must already sit on the 0.1 grid; do not round an off-grid value
+        # (e.g. 0.55) up into a legal bucket — reject it.
         rounded = round(v, 1)
-        if rounded not in VALID_BUCKETS:
+        if rounded not in VALID_BUCKETS or abs(rounded - v) > 1e-9:
             raise ValueError(
                 f"confidence_bucket must be one of {sorted(VALID_BUCKETS)}, got {v}"
             )

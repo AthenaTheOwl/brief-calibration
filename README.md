@@ -55,9 +55,16 @@ python -m brief_calibration score --period 2026-Q2
 # render decisions/calibration-memo/2026-Q2.md from the latest row
 python -m brief_calibration memo --period 2026-Q2
 
+# print the latest committed result, ranked + readable (read-only, no args)
+python -m brief_calibration show
+
 # tests
 pytest -q
 ```
+
+The `show` verb reads the committed ledger and prints the bands ranked by
+how far each drifted past its calibrated floor, with a one-line headline
+finding. It writes nothing and exits zero.
 
 The fixture at `data/fixtures/2026-Q2-brief-calls.yaml` ships with
 five hand-curated calls; the ledger and memo for 2026-Q2 are
@@ -101,6 +108,25 @@ brief-calibration/
     test_ledger.py
     test_cli.py
 ```
+
+## live demo
+
+A read-only Streamlit page (`streamlit_app.py`) renders the same result as
+`show`: overall Brier, the per-band breakdown ranked by drift, and a headline
+callout. It reads the committed `data/ledger/*.jsonl` directly — no network,
+no secrets.
+
+```bash
+# local
+python -m uv run --with streamlit streamlit run streamlit_app.py
+# or, with requirements.txt installed:
+streamlit run streamlit_app.py
+```
+
+Deploy on Streamlit Community Cloud: New app → repo `AthenaTheOwl/brief-calibration`,
+branch `main`, main file `streamlit_app.py`.
+
+<!-- live-url: (paste the Streamlit Community Cloud URL here once deployed) -->
 
 ## Who this is for
 

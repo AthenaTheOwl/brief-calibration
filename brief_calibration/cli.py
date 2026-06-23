@@ -16,12 +16,16 @@ from typing import List, Optional
 import yaml
 from pydantic import ValidationError
 
-from brief_calibration.ledger import append_row
+from brief_calibration.ledger import append_row, ledger_path, read_latest
 from brief_calibration.report import write_memo
 from brief_calibration.score import Call, compute_score
 
 
 FIXTURE_DIR = Path("data") / "fixtures"
+
+# the repo root that ships the committed fixtures + ledger, resolved from
+# this file so `show` reads the same artifact regardless of cwd.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def fixture_path(period: str, root: Optional[Path] = None) -> Path:
@@ -102,6 +106,82 @@ def cmd_memo(args: argparse.Namespace) -> int:
     return 0
 
 
+def _drift(conf: float, brier: float) -> float:
+    """observed brier minus the calibrated floor p*(1-p) for that bucket.
+
+    positive = worse than a perfectly-calibrated forecaster at that confidence.
+    """
+    return round(brier - conf * (1 - conf), 4)
+
+
+def cmd_show(args: argparse.Namespace) -> int:
+    """read-only: print the latest committed calibration result, ranked.
+
+    no args, no writes, offline. defaults to the newest shipped period.
+    """
+    period = args.period or latest_period(root=REPO_ROOT)
+    if period is None:
+        print("show: no fixtures found under data/fixtures", file=sys.stderr)
+        return 2
+    try:
+        row = read_latest(period, root=REPO_ROOT)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"show: {e}", file=sys.stderr)
+        print("show: run `score` first to write a ledger row.", file=sys.stderr)
+        return 2
+
+    overall = row["overall_brier"]
+    n_items = row["n_items"]
+    computed = row.get("computed_at", "unknown")
+    buckets = row.get("buckets", [])
+
+    # rank by drift past the calibrated floor, worst first.
+    ranked = sorted(
+        buckets, key=lambda b: _drift(b["confidence"], b["brier"]), reverse=True
+    )
+
+    print(f"field brief calibration - {period}")
+    print(f"overall brier {overall} over n={n_items}   (computed {computed})")
+    print("lower brier is better; 0 = perfect, 0.25 = a coin flip.")
+    print()
+    print(f"{'rank':>4}  {'conf':>5}  {'n':>3}  {'brier':>6}  {'floor':>6}  "
+          f"{'drift':>7}  read")
+    print("-" * 64)
+    for i, b in enumerate(ranked, start=1):
+        conf, n, brier = b["confidence"], b["n"], b["brier"]
+        floor = round(conf * (1 - conf), 4)
+        drift = _drift(conf, brier)
+        if n < 8:
+            read = "thin sample"
+        elif drift > 0.05:
+            read = "drifted past floor"
+        else:
+            read = "within floor"
+        print(f"{i:>4}  {conf:>5}  {n:>3}  {brier:>6}  {floor:>6}  "
+              f"{drift:>+7.2f}  {read}")
+    print()
+
+    if ranked:
+        worst = ranked[0]
+        wdrift = _drift(worst["confidence"], worst["brier"])
+        if wdrift > 0.05:
+            print(
+                f"headline: the {worst['confidence']} confidence band is the "
+                f"least calibrated - brier {worst['brier']}, "
+                f"{wdrift:+.2f} past its {round(worst['confidence']*(1-worst['confidence']),4)} "
+                f"floor (n={worst['n']}). retire or re-band first."
+            )
+        else:
+            print(
+                f"headline: no band drifted past the 0.05 threshold; the "
+                f"vocabulary held this period (worst was {worst['confidence']} "
+                f"at {wdrift:+.2f})."
+            )
+    print()
+    print(f"source: {ledger_path(period, root=REPO_ROOT)}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="brief_calibration")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -117,6 +197,12 @@ def build_parser() -> argparse.ArgumentParser:
     m = sub.add_parser("memo", help="render the memo for a period")
     m.add_argument("--period", default=None, help="defaults to the newest shipped period")
     m.set_defaults(func=cmd_memo)
+
+    sh = sub.add_parser(
+        "show", help="print the latest committed calibration result, ranked (read-only)"
+    )
+    sh.add_argument("--period", default=None, help="defaults to the newest shipped period")
+    sh.set_defaults(func=cmd_show)
 
     return p
 
