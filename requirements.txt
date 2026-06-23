@@ -1,4 +1,9 @@
 # Streamlit Community Cloud reads this file. The app (streamlit_app.py) reads
-# the committed data/ledger/*.jsonl directly, so it only needs streamlit. The
-# CLI/package under brief_calibration/ has its own deps in pyproject.toml.
+# the committed data/ledger/*.jsonl directly for the report view, and also
+# imports the real scorer (brief_calibration.score.compute_score) for the
+# interactive "score your own calls" section, so the package must be installed.
 streamlit>=1.40
+pydantic>=2
+# install this repo as a package so `from brief_calibration.score import ...`
+# resolves on Streamlit Cloud.
+.
