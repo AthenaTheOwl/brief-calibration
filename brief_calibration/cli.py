@@ -57,6 +57,8 @@ def load_calls(period: str, root: Optional[Path] = None) -> List[Call]:
     items = raw.get("items") if isinstance(raw, dict) else None
     if not items:
         raise ValueError(f"fixture {path} has no `items` list")
+    if not isinstance(items, list) or not all(isinstance(item, dict) for item in items):
+        raise ValueError(f"fixture {path} `items` must be a list of mappings")
     return [Call(**item) for item in items]
 
 
@@ -89,8 +91,15 @@ def cmd_score(args: argparse.Namespace) -> int:
     if period is None:
         print("score: no fixtures found under data/fixtures", file=sys.stderr)
         return 2
-    calls = load_calls(period)
-    score = compute_score(period, calls)
+    try:
+        calls = load_calls(period)
+        score = compute_score(period, calls)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"score: {e}", file=sys.stderr)
+        return 2
+    except ValidationError as e:
+        print(f"score: schema violation: {e}", file=sys.stderr)
+        return 2
     path = append_row(score)
     print(f"score: {period}: overall brier {score.overall_brier} -> {path}")
     return 0
@@ -101,7 +110,15 @@ def cmd_memo(args: argparse.Namespace) -> int:
     if period is None:
         print("memo: no fixtures found under data/fixtures", file=sys.stderr)
         return 2
-    path = write_memo(period)
+    try:
+        path = write_memo(period)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"memo: {e}", file=sys.stderr)
+        print("memo: run `score` first to write a ledger row.", file=sys.stderr)
+        return 2
+    except ValidationError as e:
+        print(f"memo: schema violation: {e}", file=sys.stderr)
+        return 2
     print(f"memo: {period}: wrote {path}")
     return 0
 
