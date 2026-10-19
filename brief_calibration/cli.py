@@ -18,7 +18,7 @@ from pydantic import ValidationError
 
 from brief_calibration.ledger import append_row, ledger_path, read_latest
 from brief_calibration.report import write_memo
-from brief_calibration.score import Call, compute_score
+from brief_calibration.score import Call, check_unique_ids, compute_score
 
 
 FIXTURE_DIR = Path("data") / "fixtures"
@@ -76,6 +76,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
         return 2
     try:
         calls = load_calls(period)
+        check_unique_ids(calls)
     except (FileNotFoundError, ValueError) as e:
         print(f"validate: {e}", file=sys.stderr)
         return 2

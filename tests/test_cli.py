@@ -15,6 +15,25 @@ def test_validate_unknown_period_exits_nonzero():
     assert rc != 0
 
 
+def test_validate_rejects_duplicate_ids(tmp_path, monkeypatch, capsys):
+    # validate must flag the same repeated id that score refuses, so a bad
+    # fixture fails at the first user action, not only at scoring time.
+    fixtures = tmp_path / "data" / "fixtures"
+    fixtures.mkdir(parents=True)
+    (fixtures / "2099-Q1-brief-calls.yaml").write_text(
+        "period: 2099-Q1\n"
+        "items:\n"
+        "  - {id: same, claim: x, confidence_bucket: 0.8, outcome: true}\n"
+        "  - {id: same, claim: x, confidence_bucket: 0.8, outcome: false}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    rc = main(["validate", "--period", "2099-Q1"])
+    err = capsys.readouterr().err
+    assert rc != 0
+    assert err.startswith("validate: duplicate call id: same")
+
+
 def test_show_no_args_exits_zero():
     # no-arg show reads the committed ledger and exits clean.
     rc = main(["show"])

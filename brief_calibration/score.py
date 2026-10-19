@@ -52,6 +52,15 @@ def _round4(x: float) -> float:
     return round(x, 4)
 
 
+def check_unique_ids(calls: List[Call]) -> None:
+    """Raise ValueError on the first call id that repeats."""
+    seen: set[str] = set()
+    for call in calls:
+        if call.id in seen:
+            raise ValueError(f"duplicate call id: {call.id}")
+        seen.add(call.id)
+
+
 def compute_score(period: str, calls: List[Call]) -> PeriodScore:
     """Compute overall and per-bucket Brier for a period.
 
@@ -62,11 +71,7 @@ def compute_score(period: str, calls: List[Call]) -> PeriodScore:
     if not calls:
         raise ValueError("compute_score requires at least one call")
 
-    seen: set[str] = set()
-    for call in calls:
-        if call.id in seen:
-            raise ValueError(f"duplicate call id: {call.id}")
-        seen.add(call.id)
+    check_unique_ids(calls)
 
     per_bucket: dict[float, list[float]] = defaultdict(list)
     total = 0.0

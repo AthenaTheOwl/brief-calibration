@@ -7,8 +7,9 @@ like a pattern.
 
 ## What it does
 
-Scoring rejects repeated forecast IDs in a period. Re-importing the same call
-cannot give it extra weight or hide conflicting outcomes behind an average.
+Validation and scoring reject repeated forecast IDs in a period. Re-importing
+the same call cannot give it extra weight or hide conflicting outcomes behind an
+average.
 
 A weekly brief makes predictions whether it admits to or not. Which firm is
 overrated, which paper won't replicate, which capex announcement evaporates — those
