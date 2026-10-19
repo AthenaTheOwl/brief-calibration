@@ -49,3 +49,10 @@ def test_rejects_off_grid_bucket():
 def test_empty_calls_raises():
     with pytest.raises(ValueError):
         compute_score("2026-Q2", [])
+
+
+@pytest.mark.parametrize("second_outcome", [True, False])
+def test_duplicate_ids_do_not_reweight_a_forecast(second_outcome):
+    calls = _calls([("same", 0.8, True), ("same", 0.8, second_outcome)])
+    with pytest.raises(ValueError, match="duplicate call id: same"):
+        compute_score("2026-Q2", calls)

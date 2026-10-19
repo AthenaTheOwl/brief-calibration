@@ -62,6 +62,12 @@ def compute_score(period: str, calls: List[Call]) -> PeriodScore:
     if not calls:
         raise ValueError("compute_score requires at least one call")
 
+    seen: set[str] = set()
+    for call in calls:
+        if call.id in seen:
+            raise ValueError(f"duplicate call id: {call.id}")
+        seen.add(call.id)
+
     per_bucket: dict[float, list[float]] = defaultdict(list)
     total = 0.0
     for c in calls:
