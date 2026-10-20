@@ -34,9 +34,14 @@ explicit coin flip and is allowed but flagged in the memo.
 - Anything else is excluded from the score for this period and will
   be re-resolved next quarter
 
-In v0.1 the fixture is hand-curated and every row has a resolved
-`outcome`. The "unresolved" path lands when the spec 0003 backfill
-runs against real brief items.
+In v0.1 the fixture is synthetic: five illustrative calls written to
+exercise the harness, every one with a resolved `outcome`. They are not
+Field Brief items. Their ids (2026-Q1-w03 to w11) name weeks before
+the brief's first issue (2026-W20), and none of the claims appears in
+any issue. The fixture declares this as `provenance: synthetic`, the
+ledger row and memo carry it, and scores from it describe the fixture,
+not the brief. The "unresolved" path lands when the spec 0003 backfill
+runs against real brief items, declared as `provenance: brief`.
 
 ## confidence bucket drift
 
@@ -53,6 +58,21 @@ With fewer than 8 calls in a bucket, the per-bucket Brier is noisy.
 The memo says so in plain language and does not propose retiring a
 band on n < 8 alone. v0.1 ships with n = 1 per bucket; the memo will
 read as a worked example, not as a verdict.
+
+Every calibration claim the memo or `show` prints carries its n: the
+overall line, the headline, each drifted band and each follow-up.
+
+A Brier of 0.25 is what always saying 0.5 earns, the coin-flip
+reference. Neither the memo nor `show` says a band or a period is
+worse or better than a coin flip on fewer than **30** resolved calls
+(`MIN_N_FOR_CHANCE_CLAIM` in `brief_calibration/claims.py`). Below
+that they print "not compared" with the n. A single call at 0.8 that
+resolves false scores 0.64 whatever the forecaster's skill, so one
+call cannot carry the comparison; 30 is the conventional floor for
+treating a mean as more than a handful of draws, and it revisits with
+the bucket-drift threshold at 100 resolved calls. The memo render
+fails if a line states a Brier, drift or calibration claim without
+its n, or compares with chance below the minimum.
 
 ## What revisits this
 

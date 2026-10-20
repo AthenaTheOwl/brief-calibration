@@ -8,11 +8,17 @@
 - quarterly memo renderer writing
   `decisions/calibration-memo/<period>.md`
 - one CLI entry: `python -m brief_calibration {validate|score|memo} --period <p>`
-- first real ledger row and first real memo for 2026-Q2
+- first ledger row and first memo for 2026-Q2, scored on five synthetic
+  fixture calls (`provenance: synthetic`): illustrative calls that predate
+  the brief and appear in no issue, so the 2026-Q2 numbers describe the
+  fixture, not the brief
+- the memo and `show` print the provenance and the n beside every
+  calibration claim, and make no comparison with chance below n = 30
 
 ## Known limits
 
-- the 12-week backfill against the real Field Brief repo
+- no real Field Brief items scored yet: the 12-week backfill against the
+  real Field Brief repo has not run
 - per-horizon scoring (30/60/90/180 days) — v0.1 collapses to one
   horizon per quarter
 - calibration-curve SVG in the memo

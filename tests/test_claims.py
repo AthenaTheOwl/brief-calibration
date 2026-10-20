@@ -136,6 +136,15 @@ def test_show_labels_synthetic_data_and_declines_chance(capsys):
     assert not CHANCE_CLAIM_RE.search(out)
 
 
+def test_readme_headline_says_synthetic_and_gives_n():
+    text = (REPO / "README.md").read_text(encoding="utf-8")
+    assert not CHANCE_CLAIM_RE.search(text)
+    headline = " ".join(text.split("\n\n")[1].split())
+    assert "synthetic fixtures" in headline
+    assert "(n=1)" in headline and "(n=5)" in headline
+    assert claim_errors([headline]) == []
+
+
 def test_compute_score_defaults_provenance_to_unspecified():
     score = compute_score("2099-Q1", [Call(id="a", claim="x", confidence_bucket=0.6, outcome=True)])
     assert score.provenance == "unspecified"

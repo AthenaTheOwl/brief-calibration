@@ -1,9 +1,11 @@
 # brief-calibration
 
-The 0.8-confidence band scored a Brier of 0.64 — worse than a coin flip, and 0.48
-past the floor that confidence was supposed to buy. The harness found that on n=1,
-which is the whole point: it counts the misses before they pile up enough to feel
-like a pattern.
+From synthetic fixtures, not Field Brief items: five illustrative calls score an
+overall Brier of 0.212 (n=5), and the 0.8 band's 0.64 is a single call (n=1). One
+call cannot place a band against a coin flip, so the harness declines to: below
+n=30 resolved calls it prints the n and makes no comparison with chance. The
+point is to count the misses before they pile up enough to feel like a pattern,
+and the real calls are still to come.
 
 ## What it does
 
@@ -20,9 +22,17 @@ fixture, so one id cannot be counted twice or carry two conflicting outcomes.
 Every quarter it produces one calibration memo: per-band Brier and drift, a
 "framings to retire" list (where the author is reliably over- or under-confident),
 and source-pruning rows for the [source-decay-ledger](https://github.com/AthenaTheOwl/source-decay-ledger)
-to consume. v0.1 runs end to end on a committed fixture — five hand-curated calls,
-with the 2026-Q2 ledger and memo checked in as the worked example. The scorer is the
-point; the data slice is deliberately narrow.
+to consume. v0.1 runs end to end on a committed fixture: five synthetic calls,
+with the 2026-Q2 ledger and memo checked in as the worked example. The calls are
+illustrative. Their ids (2026-Q1-w03 to w11) name weeks before the brief's first
+issue (2026-W20), none of the claims appears in any issue, and the fixture says so
+(`provenance: synthetic`). The scorer is the point; the data slice is deliberately
+narrow, and real brief items replace it in the backfill (see STATUS.md).
+
+The memo and `show` print the provenance and the n beside every calibration claim.
+They refuse a comparison with chance below n=30 resolved calls (the minimum is in
+`docs/METHODOLOGY.md` and `brief_calibration/claims.py`), and the memo render fails
+if a claim line is missing its n.
 
 ## Try it
 
@@ -43,14 +53,17 @@ rank   conf    n   brier   floor    drift  read
    4    0.9    1    0.01    0.09    -0.08  thin sample
    5    0.7    1    0.09    0.21    -0.12  thin sample
 
-headline: the 0.8 confidence band is the least calibrated - brier 0.64, +0.48 past its 0.16 floor (n=1). retire or re-band first.
+data: synthetic fixtures: illustrative calls, not Field Brief items (n=5)
+headline (synthetic fixtures): the 0.8 confidence band is the least calibrated - brier 0.64, +0.48 past its 0.16 floor (n=1). grow the sample before re-banding.
+vs chance (overall): not compared: n=5 is below the minimum of 30 for a comparison with a coin flip.
 
-source: E:\claude_code\random-apps\brief-calibration\data\ledger\2026-Q2.jsonl
+source: <repo>/data/ledger/2026-Q2.jsonl
 ```
 
 `show` reads the committed ledger and ranks the bands by how far each drifted past
 its calibrated floor, worst first. It writes nothing and exits zero. The band at the
-top is the one whose stated confidence the record doesn't back up.
+top is the one whose stated confidence the record doesn't back up, read with its n:
+at n=1 that is a reason to grow the sample, not to re-band.
 
 ## live demo
 
@@ -111,8 +124,8 @@ pytest -q
 ## Layout
 
 ```
-brief_calibration/   cli, score, ledger, report
-data/fixtures/       2026-Q2-brief-calls.yaml — five hand-curated calls
+brief_calibration/   cli, score, ledger, report, fixture, claims (the n guard)
+data/fixtures/       2026-Q2-brief-calls.yaml — five synthetic calls (provenance: synthetic)
 data/ledger/         2026-Q2.jsonl — append-only scored rows
 decisions/           DEC-CAL-001 rubric + calibration-memo/2026-Q2.md
 docs/  specs/  tests/
