@@ -77,11 +77,12 @@ def cmd_validate(args: argparse.Namespace) -> int:
     try:
         calls = load_calls(period)
         check_unique_ids(calls)
+    except ValidationError as e:
+        # before ValueError: pydantic v2 ValidationError subclasses it.
+        print(f"validate: schema violation: {e}", file=sys.stderr)
+        return 2
     except (FileNotFoundError, ValueError) as e:
         print(f"validate: {e}", file=sys.stderr)
-        return 2
-    except ValidationError as e:
-        print(f"validate: schema violation: {e}", file=sys.stderr)
         return 2
     print(f"validate: {period}: {len(calls)} calls ok")
     return 0
@@ -95,11 +96,12 @@ def cmd_score(args: argparse.Namespace) -> int:
     try:
         calls = load_calls(period)
         score = compute_score(period, calls)
+    except ValidationError as e:
+        # before ValueError: pydantic v2 ValidationError subclasses it.
+        print(f"score: schema violation: {e}", file=sys.stderr)
+        return 2
     except (FileNotFoundError, ValueError) as e:
         print(f"score: {e}", file=sys.stderr)
-        return 2
-    except ValidationError as e:
-        print(f"score: schema violation: {e}", file=sys.stderr)
         return 2
     path = append_row(score)
     print(f"score: {period}: overall brier {score.overall_brier} -> {path}")

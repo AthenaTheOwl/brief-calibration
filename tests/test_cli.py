@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from brief_calibration.cli import main
 
 
@@ -32,6 +34,25 @@ def test_validate_rejects_duplicate_ids(tmp_path, monkeypatch, capsys):
     err = capsys.readouterr().err
     assert rc != 0
     assert err.startswith("validate: duplicate call id: same")
+
+
+@pytest.mark.parametrize("command", ["validate", "score"])
+def test_schema_error_reports_schema_violation(command, tmp_path, monkeypatch, capsys):
+    # pydantic v2 ValidationError subclasses ValueError; the schema handler
+    # must still win so the message carries its "schema violation:" prefix.
+    fixtures = tmp_path / "data" / "fixtures"
+    fixtures.mkdir(parents=True)
+    (fixtures / "2099-Q3-brief-calls.yaml").write_text(
+        "period: 2099-Q3\n"
+        "items:\n"
+        "  - {id: 1, claim: x, confidence_bucket: 0.8, outcome: true}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    rc = main([command, "--period", "2099-Q3"])
+    err = capsys.readouterr().err
+    assert rc != 0
+    assert err.startswith(f"{command}: schema violation:")
 
 
 def test_show_no_args_exits_zero():
