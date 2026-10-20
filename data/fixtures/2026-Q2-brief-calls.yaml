@@ -1,4 +1,10 @@
 period: 2026-Q2
+# These five calls are synthetic. They were written to exercise the harness
+# and are not Field Brief items: ids 2026-Q1-w03..w11 name weeks before the
+# brief's first issue (2026-W20), and none of the claims appears in any
+# issue. Scores computed from them describe the fixture, not the brief.
+provenance: synthetic
+provenance_note: "Illustrative calls and outcomes written for the v0.1 worked example; they predate the Field Brief and appear in no issue."
 items:
   - id: 2026-Q1-w03-meta-pause
     claim: "Meta will publicly defer at least one announced 2026 expansion site"

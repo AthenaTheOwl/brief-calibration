@@ -13,24 +13,23 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-import yaml
 from pydantic import ValidationError
 
+from brief_calibration.claims import provenance_label
+from brief_calibration.fixture import (
+    FIXTURE_DIR,
+    fixture_path,  # noqa: F401  (kept importable from cli)
+    fixture_provenance,
+    provenance_of,
+    read_fixture,
+)
 from brief_calibration.ledger import append_row, ledger_path, read_latest
-from brief_calibration.report import write_memo
-from brief_calibration.score import Call, compute_score
-
-
-FIXTURE_DIR = Path("data") / "fixtures"
+from brief_calibration.report import headline_lines, write_memo
+from brief_calibration.score import Call, check_unique_ids, compute_score
 
 # the repo root that ships the committed fixtures + ledger, resolved from
 # this file so `show` reads the same artifact regardless of cwd.
 REPO_ROOT = Path(__file__).resolve().parent.parent
-
-
-def fixture_path(period: str, root: Optional[Path] = None) -> Path:
-    base = (root or Path(".")) / FIXTURE_DIR
-    return base / f"{period}-brief-calls.yaml"
 
 
 def discover_periods(root: Optional[Path] = None) -> List[str]:
@@ -49,17 +48,20 @@ def latest_period(root: Optional[Path] = None) -> Optional[str]:
     return periods[-1] if periods else None
 
 
-def load_calls(period: str, root: Optional[Path] = None) -> List[Call]:
+def load_fixture(period: str, root: Optional[Path] = None) -> tuple[List[Call], str]:
+    """The period's calls and the fixture's declared provenance."""
     path = fixture_path(period, root=root)
-    if not path.exists():
-        raise FileNotFoundError(f"no fixture for {period} at {path}")
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    items = raw.get("items") if isinstance(raw, dict) else None
+    raw = read_fixture(period, root=root)
+    items = raw.get("items")
     if not items:
         raise ValueError(f"fixture {path} has no `items` list")
     if not isinstance(items, list) or not all(isinstance(item, dict) for item in items):
         raise ValueError(f"fixture {path} `items` must be a list of mappings")
-    return [Call(**item) for item in items]
+    return [Call(**item) for item in items], provenance_of(raw, path)
+
+
+def load_calls(period: str, root: Optional[Path] = None) -> List[Call]:
+    return load_fixture(period, root=root)[0]
 
 
 def resolve_period(period: Optional[str]) -> Optional[str]:
@@ -75,14 +77,16 @@ def cmd_validate(args: argparse.Namespace) -> int:
         print("validate: no fixtures found under data/fixtures", file=sys.stderr)
         return 2
     try:
-        calls = load_calls(period)
+        calls, provenance = load_fixture(period)
+        check_unique_ids(calls)
+    except ValidationError as e:
+        # before ValueError: pydantic v2 ValidationError subclasses it.
+        print(f"validate: schema violation: {e}", file=sys.stderr)
+        return 2
     except (FileNotFoundError, ValueError) as e:
         print(f"validate: {e}", file=sys.stderr)
         return 2
-    except ValidationError as e:
-        print(f"validate: schema violation: {e}", file=sys.stderr)
-        return 2
-    print(f"validate: {period}: {len(calls)} calls ok")
+    print(f"validate: {period}: {len(calls)} calls ok ({provenance_label(provenance)})")
     return 0
 
 
@@ -92,13 +96,14 @@ def cmd_score(args: argparse.Namespace) -> int:
         print("score: no fixtures found under data/fixtures", file=sys.stderr)
         return 2
     try:
-        calls = load_calls(period)
-        score = compute_score(period, calls)
+        calls, provenance = load_fixture(period)
+        score = compute_score(period, calls, provenance=provenance)
+    except ValidationError as e:
+        # before ValueError: pydantic v2 ValidationError subclasses it.
+        print(f"score: schema violation: {e}", file=sys.stderr)
+        return 2
     except (FileNotFoundError, ValueError) as e:
         print(f"score: {e}", file=sys.stderr)
-        return 2
-    except ValidationError as e:
-        print(f"score: schema violation: {e}", file=sys.stderr)
         return 2
     path = append_row(score)
     print(f"score: {period}: overall brier {score.overall_brier} -> {path}")
@@ -178,22 +183,13 @@ def cmd_show(args: argparse.Namespace) -> int:
               f"{drift:>+7.2f}  {read}")
     print()
 
-    if ranked:
-        worst = ranked[0]
-        wdrift = _drift(worst["confidence"], worst["brier"])
-        if wdrift > 0.05:
-            print(
-                f"headline: the {worst['confidence']} confidence band is the "
-                f"least calibrated - brier {worst['brier']}, "
-                f"{wdrift:+.2f} past its {round(worst['confidence']*(1-worst['confidence']),4)} "
-                f"floor (n={worst['n']}). retire or re-band first."
-            )
-        else:
-            print(
-                f"headline: no band drifted past the 0.05 threshold; the "
-                f"vocabulary held this period (worst was {worst['confidence']} "
-                f"at {wdrift:+.2f})."
-            )
+    try:
+        claims = headline_lines(row, fixture_provenance(period, root=REPO_ROOT))
+    except ValueError as e:
+        print(f"show: {e}", file=sys.stderr)
+        return 2
+    for line in claims:
+        print(line)
     print()
     print(f"source: {ledger_path(period, root=REPO_ROOT)}")
     return 0

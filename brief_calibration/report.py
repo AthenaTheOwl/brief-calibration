@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+from brief_calibration.claims import chance_verdict, check_claims, provenance_label
+from brief_calibration.fixture import fixture_provenance
 from brief_calibration.ledger import read_latest
 
 
@@ -35,6 +37,42 @@ def _drift_amount(conf: float, brier: float) -> float:
     return round(brier - conf * (1 - conf), 4)
 
 
+def headline_lines(row: dict, provenance: Optional[str] = None) -> list[str]:
+    """The headline claims for a ledger row, each with its n.
+
+    Shared by the memo and `show`. Says where the calls came from, names the
+    worst band only with its n, and compares the overall Brier with a coin
+    flip only at or above the documented minimum n (see claims.py).
+    """
+    provenance = row.get("provenance") or provenance or "unspecified"
+    n_items = row["n_items"]
+    lines = [f"data: {provenance_label(provenance)} (n={n_items})"]
+    label = "headline (synthetic fixtures)" if provenance == "synthetic" else "headline"
+    ranked = sorted(
+        row["buckets"], key=lambda b: _drift_amount(b["confidence"], b["brier"]), reverse=True
+    )
+    if ranked:
+        worst = ranked[0]
+        conf, n, brier = worst["confidence"], worst["n"], worst["brier"]
+        wdrift = _drift_amount(conf, brier)
+        if wdrift > 0.05:
+            next_step = (
+                "grow the sample before re-banding" if n < 8 else "retire or re-band first"
+            )
+            lines.append(
+                f"{label}: the {conf} confidence band is the least calibrated - "
+                f"brier {brier}, {wdrift:+.2f} past its {round(conf * (1 - conf), 4)} "
+                f"floor (n={n}). {next_step}."
+            )
+        else:
+            lines.append(
+                f"{label}: no band drifted past the 0.05 threshold; the vocabulary "
+                f"held this period (worst was {conf} at {wdrift:+.2f}, n={n})."
+            )
+    lines.append(f"vs chance (overall): {chance_verdict(row['overall_brier'], n_items)}.")
+    return check_claims("\n".join(lines)).splitlines()
+
+
 def _follow_ups(row: dict) -> list[str]:
     """Up to three concrete follow-ups derived from the buckets."""
     buckets = sorted(
@@ -54,15 +92,23 @@ def _follow_ups(row: dict) -> list[str]:
             out.append(
                 f"re-band the topic clusters that resolved against "
                 f"confidence {b['confidence']} (Brier {b['brier']}, "
-                f"drift {drift:+.2f})"
+                f"drift {drift:+.2f}, n = {b['n']})"
             )
     if not out:
-        out.append("no bucket exceeded the 0.05 drift threshold; hold the vocabulary")
+        out.append(
+            f"no bucket exceeded the 0.05 drift threshold; hold the vocabulary "
+            f"(n = {row['n_items']})"
+        )
     return out
 
 
-def render_memo(row: dict) -> str:
-    """Render the memo Markdown from a ledger row dict."""
+def render_memo(row: dict, provenance: Optional[str] = None) -> str:
+    """Render the memo Markdown from a ledger row dict.
+
+    `provenance` fills in for a ledger row written before rows carried one.
+    Every calibration claim in the memo carries its n, and the render fails
+    if one does not, or if it compares with chance below the minimum n.
+    """
     period = row["period"]
     overall = row["overall_brier"]
     n_items = row["n_items"]
@@ -73,6 +119,11 @@ def render_memo(row: dict) -> str:
     lines.append("")
     lines.append(f"- overall brier: **{overall}** over n = {n_items}")
     lines.append(f"- computed at: {row.get('computed_at', 'unknown')}")
+    lines.append("")
+    lines.append("## headline")
+    lines.append("")
+    for line in headline_lines(row, provenance):
+        lines.append(f"- {line}")
     lines.append("")
     lines.append("## yield by confidence bucket")
     lines.append("")
@@ -91,7 +142,7 @@ def render_memo(row: dict) -> str:
     lines.append("## buckets that drifted most")
     lines.append("")
     if not drifted:
-        lines.append("none past the 0.05 threshold this period.")
+        lines.append(f"none past the 0.05 drift threshold this period (n = {n_items}).")
     else:
         for b in drifted[:2]:
             d = _drift_amount(b["confidence"], b["brier"])
@@ -109,12 +160,13 @@ def render_memo(row: dict) -> str:
     lines.append("")
     lines.append("see `docs/METHODOLOGY.md` for the rubric and revisit conditions.")
     lines.append("")
-    return "\n".join(lines)
+    return check_claims("\n".join(lines))
 
 
 def write_memo(period: str, root: Optional[Path] = None) -> Path:
     row = read_latest(period, root=root)
+    memo = render_memo(row, provenance=fixture_provenance(period, root=root))
     path = memo_path(period, root=root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_memo(row), encoding="utf-8")
+    path.write_text(memo, encoding="utf-8")
     return path

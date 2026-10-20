@@ -18,6 +18,9 @@ import streamlit as st
 
 # the real engine: the same scorer the CLI `score` verb drives. we import and
 # call it live below so the interactive section is not a re-implementation.
+from brief_calibration.claims import chance_verdict, check_claims
+from brief_calibration.fixture import fixture_provenance
+from brief_calibration.report import headline_lines
 from brief_calibration.score import Call, compute_score
 from pydantic import ValidationError
 
@@ -113,24 +116,19 @@ st.subheader(f"bands by drift - {period}  (computed {computed})")
 st.dataframe(table, use_container_width=True, hide_index=True)
 
 flagged = [t for t in table if t["read"] == "drifted past floor"]
-if worst and worst_drift > threshold:
-    st.info(
-        f"**headline:** the {worst['confidence']} confidence band is the least "
-        f"calibrated - brier {worst['brier']}, {worst_drift:+.2f} past its "
-        f"{round(worst['confidence'] * (1 - worst['confidence']), 4)} floor "
-        f"(n={worst['n']}). {len(flagged)} band(s) drifted past {threshold:+.2f}. "
-        f"retire or re-band these first."
-    )
-else:
-    st.info(
-        f"**headline:** no band drifted past {threshold:+.2f} this period; the "
-        f"vocabulary held (worst was {worst['confidence'] if worst else 'n/a'} "
-        f"at {worst_drift:+.2f})."
-    )
+# the same guarded headline the memo and `show` print: provenance first,
+# n beside every claim, no comparison with chance below the minimum n.
+committed = headline_lines(row, fixture_provenance(period, root=REPO))
+committed.append(
+    f"slider: {len(flagged)} band(s) with n >= 8 drifted past {threshold:+.2f} "
+    f"(n={n_items} calls)."
+)
+st.info("\n\n".join(f"**{line.split(':', 1)[0]}:**{line.split(':', 1)[1]}" for line in committed))
 
 st.caption(
-    "v0.1 ships one quarter (2026-Q2) as the worked example; bands are thin "
-    "(n=1) until the 12-week backfill lands. the scorer + ledger live in "
+    "v0.1 ships one quarter (2026-Q2) as the worked example, scored on five "
+    "synthetic fixture calls that are not Field Brief items; bands are thin "
+    "(n=1) until the 12-week backfill of real items lands. the scorer + ledger live in "
     "`brief_calibration/`; this page reads the committed `data/ledger/*.jsonl`. "
     "repo: github.com/AthenaTheOwl/brief-calibration"
 )
@@ -153,7 +151,8 @@ st.caption(
     "that comes false scores 0.64 - watch the band light up."
 )
 
-# pre-fill with the committed worked example so there is always something to run.
+# pre-fill with the committed worked example (synthetic fixture calls, not
+# Field Brief items) so there is always something to run.
 DEFAULT_CALLS = [
     {"claim": "Meta defers an announced 2026 expansion site", "confidence": 0.6, "outcome": True},
     {"claim": "The Q4 alignment paper fails to replicate in 90 days", "confidence": 0.8, "outcome": False},
@@ -251,19 +250,26 @@ if st.button("score calls", type="primary"):
     st.dataframe(own_table, use_container_width=True, hide_index=True)
 
     if own_worst and own_worst_drift > threshold:
-        st.info(
+        own_headline = (
             f"**your headline:** the {own_worst.confidence} band is least "
             f"calibrated - brier {own_worst.brier}, {own_worst_drift:+.2f} past "
             f"its {round(own_worst.confidence * (1 - own_worst.confidence), 4)} "
-            f"floor (n={own_worst.n}). re-band or retire that vocabulary first."
+            f"floor (n={own_worst.n}). "
+            + ("grow the sample before re-banding." if own_worst.n < 8
+               else "re-band or retire that vocabulary first.")
         )
     else:
-        st.success(
+        own_headline = (
             f"**your headline:** no band drifted past {threshold:+.2f}; your "
             f"vocabulary held (worst was "
             f"{own_worst.confidence if own_worst else 'n/a'} at "
-            f"{own_worst_drift:+.2f})."
+            f"{own_worst_drift:+.2f}, n={own_worst.n if own_worst else 0})."
         )
+    own_chance = (
+        f"**vs chance (overall):** "
+        f"{chance_verdict(result.overall_brier, result.n_items)}."
+    )
+    st.info(check_claims(f"{own_headline}\n\n{own_chance}"))
     st.caption(
         "computed live by `brief_calibration.score.compute_score` - the same "
         "engine the CLI `score` verb runs. drift threshold is shared with the "

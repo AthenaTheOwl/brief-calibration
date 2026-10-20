@@ -9,7 +9,9 @@ brief_calibration/
   score.py    — Brier math over a list of resolved calls
   ledger.py   — append-only JSONL writer + per-period reader
   report.py   — composes the quarterly memo from a ledger row
-  cli.py      — argparse entry: validate | score | memo
+  fixture.py  — locates and reads a period's fixture and its provenance
+  claims.py   — guard: n beside every calibration claim, no chance claim below n = 30
+  cli.py      — argparse entry: validate | score | memo | show
 ```
 
 `score.py` is pure: it takes a list of `Call` objects and returns a
@@ -25,7 +27,7 @@ not recompute the score. The ledger is the source of truth.
 ## layers
 
 ```
-        fixtures (yaml, hand-curated)
+        fixtures (yaml, provenance: synthetic | brief)
               │
               ▼
         validate (pydantic)
@@ -58,6 +60,9 @@ the ledger is the durable typed record in between.
 - `overall_brier` (float)
 - `n_items` (int)
 - `buckets` (list of BucketScore)
+- `provenance` (string: "synthetic", "brief" or "unspecified"; rows
+  written before 2026-10-20 lack it, and the memo and `show` read it
+  from the fixture instead)
 - `computed_at` (ISO date)
 
 ## what is not in the map

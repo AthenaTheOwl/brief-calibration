@@ -46,13 +46,27 @@ class PeriodScore(BaseModel):
     overall_brier: float
     n_items: int
     buckets: List[BucketScore] = Field(default_factory=list)
+    # where the calls came from: "synthetic" fixtures, real "brief" items,
+    # or "unspecified" for a fixture that does not say
+    provenance: str = "unspecified"
 
 
 def _round4(x: float) -> float:
     return round(x, 4)
 
 
-def compute_score(period: str, calls: List[Call]) -> PeriodScore:
+def check_unique_ids(calls: List[Call]) -> None:
+    """Raise ValueError on the first call id that repeats."""
+    seen: set[str] = set()
+    for call in calls:
+        if call.id in seen:
+            raise ValueError(f"duplicate call id: {call.id}")
+        seen.add(call.id)
+
+
+def compute_score(
+    period: str, calls: List[Call], provenance: str = "unspecified"
+) -> PeriodScore:
     """Compute overall and per-bucket Brier for a period.
 
     brier_i = (confidence_bucket - int(outcome)) ** 2
@@ -62,11 +76,7 @@ def compute_score(period: str, calls: List[Call]) -> PeriodScore:
     if not calls:
         raise ValueError("compute_score requires at least one call")
 
-    seen: set[str] = set()
-    for call in calls:
-        if call.id in seen:
-            raise ValueError(f"duplicate call id: {call.id}")
-        seen.add(call.id)
+    check_unique_ids(calls)
 
     per_bucket: dict[float, list[float]] = defaultdict(list)
     total = 0.0
@@ -90,4 +100,5 @@ def compute_score(period: str, calls: List[Call]) -> PeriodScore:
         overall_brier=_round4(overall),
         n_items=len(calls),
         buckets=buckets,
+        provenance=provenance,
     )
