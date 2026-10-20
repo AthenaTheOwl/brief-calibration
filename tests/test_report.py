@@ -53,6 +53,12 @@ GOLDEN = """# field brief calibration — 2099-Q9
 - overall brier: **0.47** over n = 20
 - computed at: 2099-01-01
 
+## headline
+
+- data: provenance not declared (n=20)
+- headline: the 0.8 confidence band is the least calibrated - brier 0.64, +0.48 past its 0.16 floor (n=10). retire or re-band first.
+- vs chance (overall): not compared: n=20 is below the minimum of 30 for a comparison with a coin flip.
+
 ## yield by confidence bucket
 
 | confidence | n | brier | read |
@@ -67,8 +73,8 @@ GOLDEN = """# field brief calibration — 2099-Q9
 
 ## follow-ups
 
-- re-band the topic clusters that resolved against confidence 0.8 (Brier 0.64, drift +0.48)
-- re-band the topic clusters that resolved against confidence 0.3 (Brier 0.3, drift +0.09)
+- re-band the topic clusters that resolved against confidence 0.8 (Brier 0.64, drift +0.48, n = 10)
+- re-band the topic clusters that resolved against confidence 0.3 (Brier 0.3, drift +0.09, n = 10)
 
 ## methodology
 

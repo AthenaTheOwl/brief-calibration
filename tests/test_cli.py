@@ -77,8 +77,8 @@ def test_show_prints_ranked_result(capsys):
     # the fixture's n=1-per-bucket ordering would not catch it.
     assert "0.8    1    0.64    0.16    +0.48" in body
     assert (
-        "headline: the 0.8 confidence band is the least calibrated - "
-        "brier 0.64, +0.48 past its 0.16 floor (n=1)."
+        "headline (synthetic fixtures): the 0.8 confidence band is the least "
+        "calibrated - brier 0.64, +0.48 past its 0.16 floor (n=1)."
     ) in out
 
 
