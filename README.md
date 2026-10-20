@@ -7,16 +7,15 @@ like a pattern.
 
 ## What it does
 
-Validation and scoring reject repeated forecast IDs in a period. Re-importing
-the same call cannot give it extra weight or hide conflicting outcomes behind an
-average.
-
 A weekly brief makes predictions whether it admits to or not. Which firm is
 overrated, which paper won't replicate, which capex announcement evaporates — those
 calls usually arrive as adjectives, unfalsifiable by design and forgotten by the
 next issue. This repo makes the brief write the prediction down: an explicit,
 horizon-tagged, falsifiable `predictions.yaml` block per item. Then it Brier-scores
 them after the world has had its say at 30, 60, 90, and 180 days.
+
+Validation and scoring reject a call id that appears twice in a period's
+fixture, so one id cannot be counted twice or carry two conflicting outcomes.
 
 Every quarter it produces one calibration memo: per-band Brier and drift, a
 "framings to retire" list (where the author is reliably over- or under-confident),
